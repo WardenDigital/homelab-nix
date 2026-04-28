@@ -1,8 +1,8 @@
 { ... }:
 {
   home.stateVersion = "25.11";
-  home.username = "warden_digital";
-  home.homeDirectory = "/home/warden_digital";
+  home.username = "ankylo";
+  home.homeDirectory = "/home/ankylo";
 
   imports = [
     ./home/cli.nix

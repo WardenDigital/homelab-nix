@@ -7,7 +7,7 @@
     # Include the results of the hardware scan.
     ./disko-configuration.nix
     ./hardware-configuration.nix
-    ./users/server/server.nix
+    ./users/ankylo/ankylo.nix
     # Different configurations
     ./../../modules/packages/common.nix
     ./configurations/locale.nix
@@ -47,9 +47,9 @@
   nix.settings.experimental-features = "nix-command flakes";
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
-  users.users.server = {
+  users.users.ankylo = {
     isNormalUser = true;
-    description = "server user";
+    description = "main server user";
     extraGroups = [
       "networkmanager"
       "wheel"
