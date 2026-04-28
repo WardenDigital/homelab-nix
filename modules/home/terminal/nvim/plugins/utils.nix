@@ -9,17 +9,6 @@
             jump = "<C-s>";
           };
         };
-        preview.markdownPreview = {
-          enable = true;
-          autoStart = true;
-        };
-      };
-
-      vim.git.gitsigns = {
-        enable = true;
-        mappings = {
-          toggleBlame = "<leader>gb";
-        };
       };
     };
   };

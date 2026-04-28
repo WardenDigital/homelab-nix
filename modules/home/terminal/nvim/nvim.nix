@@ -3,7 +3,6 @@
   imports = [
     ./ui.nix
     ./keybinds.nix
-    ./languages.nix
     ./usercommands.nix
     ./plugins/plugins.nix
   ];
