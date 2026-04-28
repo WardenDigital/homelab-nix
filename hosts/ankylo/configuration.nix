@@ -11,6 +11,7 @@
     # Different configurations
     ./../../modules/packages/common.nix
     ./configurations/locale.nix
+    ./configurations/laptop.nix
   ];
 
   # Bootloader.
