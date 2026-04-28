@@ -10,6 +10,7 @@
       HandleLidSwitch = "ignore";
     };
 
+    # doesn't work for HP :((((
     tlp = {
       enable = true;
       settings = {
