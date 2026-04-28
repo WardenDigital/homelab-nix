@@ -5,9 +5,7 @@
     ../../services/services.nix
   ];
 
-  environment.systemPackages = with pkgs; [
-    starship
-  ];
+  environment.systemPackages = [ ];
 
   users.defaultUserShell = pkgs.nushell;
 
