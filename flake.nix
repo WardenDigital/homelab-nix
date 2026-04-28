@@ -50,7 +50,7 @@
               home-manager.backupFileExtension = "hm-backup";
               home-manager.useGlobalPkgs = true;
               home-manager.useUserPackages = true;
-              home-manager.users.warden_digital = {
+              home-manager.users.ankylo = {
                 imports = [
                   nvf.homeManagerModules.default
                   ./hosts/ankylo/home.nix
