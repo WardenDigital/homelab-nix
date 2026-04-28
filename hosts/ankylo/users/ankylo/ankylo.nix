@@ -24,4 +24,8 @@
     nerd-fonts.fira-code
     nerd-fonts.fira-mono
   ];
+
+  systemd.tmpfiles.rules = [
+    "d /data 0755 ankylo users -"
+  ];
 }
