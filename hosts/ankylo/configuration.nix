@@ -46,16 +46,6 @@
 
   nix.settings.experimental-features = "nix-command flakes";
 
-  # Define a user account. Don't forget to set a password with ‘passwd’.
-  users.users.ankylo = {
-    isNormalUser = true;
-    description = "main server user";
-    extraGroups = [
-      "networkmanager"
-      "wheel"
-    ];
-  };
-
   # Allow unfree packages
   nixpkgs.config.allowUnfree = true;
 
