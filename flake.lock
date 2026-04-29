@@ -77,6 +77,21 @@
         "type": "github"
       }
     },
+    "homelab-secrets": {
+      "locked": {
+        "lastModified": 1777495072,
+        "narHash": "sha256-DkeEJkb0DmOq/Mq5t6xrlxgpMCEOgf3d6N4FL9aDNoM=",
+        "ref": "refs/heads/master",
+        "rev": "cd04569e1c6dd6afc2b57d3965395565a8c80570",
+        "revCount": 4,
+        "type": "git",
+        "url": "ssh://git@github.com/WardenDigital/homelab-secrets.git"
+      },
+      "original": {
+        "type": "git",
+        "url": "ssh://git@github.com/WardenDigital/homelab-secrets.git"
+      }
+    },
     "mnw": {
       "locked": {
         "lastModified": 1770419553,
@@ -158,8 +173,30 @@
       "inputs": {
         "disko": "disko",
         "home-manager": "home-manager",
+        "homelab-secrets": "homelab-secrets",
         "nixpkgs": "nixpkgs",
-        "nvf": "nvf"
+        "nvf": "nvf",
+        "sops-nix": "sops-nix"
+      }
+    },
+    "sops-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1777338324,
+        "narHash": "sha256-bc+ZZCmOTNq86/svGnw0tVpH7vJaLYvGLLKFYP08Q8E=",
+        "owner": "Mic92",
+        "repo": "sops-nix",
+        "rev": "8eaee5c45428b28b8c47a83e4c09dccec5f279b5",
+        "type": "github"
+      },
+      "original": {
+        "owner": "Mic92",
+        "repo": "sops-nix",
+        "type": "github"
       }
     },
     "systems": {

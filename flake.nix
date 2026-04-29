@@ -17,6 +17,11 @@
       url = "github:NotAShelf/nvf";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+    sops-nix = {
+      url = "github:Mic92/sops-nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+    homelab-secrets.url = "git+ssh://git@github.com/WardenDigital/homelab-secrets.git";
   };
 
   outputs =
@@ -26,6 +31,8 @@
       home-manager,
       disko,
       nvf,
+      sops-nix,
+      homelab-secrets,
       ...
     }@inputs:
     let
@@ -37,15 +44,16 @@
         ankylo = lib.nixosSystem {
           inherit system;
 
-          specialArgs = { };
+          specialArgs = { inherit homelab-secrets; };
 
           modules = [
             disko.nixosModules.disko
+            sops-nix.nixosModules.sops
             ./hosts/ankylo/configuration.nix
             home-manager.nixosModules.home-manager
             {
               home-manager.extraSpecialArgs = {
-                inherit system inputs;
+                inherit system inputs homelab-secrets;
               };
               home-manager.backupFileExtension = "hm-backup";
               home-manager.useGlobalPkgs = true;

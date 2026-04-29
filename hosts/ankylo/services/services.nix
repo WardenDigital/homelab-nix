@@ -1,4 +1,7 @@
 { ... }:
 {
-  imports = [ ./ssh.nix ];
+  imports = [
+    ./ssh.nix
+    ./sops.nix
+  ];
 }
