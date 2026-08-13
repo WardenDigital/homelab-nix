@@ -1,8 +1,12 @@
-{ ... }:
+{ pkgs, ... }:
 {
   home.stateVersion = "25.11";
   home.username = "ankylo";
   home.homeDirectory = "/home/ankylo";
+
+  home.packages = with pkgs; [
+    google-chrome
+  ];
 
   imports = [
     ./home/cli.nix
