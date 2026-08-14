@@ -12,7 +12,7 @@
     defaultUserShell = pkgs.bash;
     users.ankylo = {
       isNormalUser = true;
-      hashedPassword = "$6$mprx9SewLPF8HEvc$kQBbrWAfb1P7udGY3rNQdtY9eU/EVr95P6lIJiDgh9YGOeihCqWKAlGvAEr.cUwNyQml4UHIqPeTro4rZHfZy/";
+      hashedPassword = "$y$j9T$lZiGeTGKoEyyaw17kE1w9.$ZHu0XTYWgQ79vE8hfgQxIEs8/VE/4w0qRa4cFuAW24/";
       description = "main server user";
       extraGroups = [
         "networkmanager"
