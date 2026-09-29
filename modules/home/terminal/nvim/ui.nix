@@ -77,18 +77,6 @@
       vim.statusline.lualine = {
         enable = true;
         refresh.statusline = 50;
-        extraActiveSection.b = [
-          ''
-            function()
-              	local reg = vim.fn.reg_recording()
-              	if reg ~= "" then
-              		return "Recording @" .. reg
-              	else
-              	    return ""
-              	end
-            end
-          ''
-        ];
       };
     };
   };

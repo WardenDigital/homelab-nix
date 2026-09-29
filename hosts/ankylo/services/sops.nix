@@ -1,4 +1,4 @@
-{ config, homelab-secrets, ... }:
+{ homelab-secrets, ... }:
 {
   sops = {
     # This is the encrypted file you created with the sops CLI
@@ -8,10 +8,11 @@
     age.sshKeyPaths = [ "/etc/ssh/ssh_host_ed25519_key" ];
 
     secrets = {
-      "key" = {
-        # Optional: Define owner/group for the secret file
-        owner = config.users.users.ankylo.name;
+      "borg-passphrase" = {
       };
+      "borg-warden-digital-maridb-pass" = {
+      };
+
     };
   };
 }

@@ -49,7 +49,7 @@ nix flake update nvf
 
 `home.nix` is the home-manager entry (home.packages = chrome/chromium, git identity `homelab-ankylo` <homelab+wardendigital@proton.me>); it imports `home/cli.nix` (btop + yazi) and `home/terminal.nix` (collector that imports the shared terminal modules below).
 
-`services/services.nix` is a collector importing `ssh.nix` (passwordless SSH, authorized key) and `sops.nix`.
+`services/services.nix` is a collector importing `ssh.nix` (passwordless SSH, authorized key), `sops.nix`, and `borg.nix` (pull-based backups — see [Backups](#backups-pull-based)).
 
 ### Shared modules — `modules/`
 
@@ -82,15 +82,76 @@ Unusual **curried function**: `{ active_user, ... }: { pkgs, config, ... }:` ret
 
 Note the "normal" form of that file is NOT how it's consumed — do not convert it to a plain module without updating the caller.
 
-## Sevices: secrets (sops)
+## Secrets (sops)
 
 - `sops.nix` (imported) sets `sops.defaultSopsFile = "${homelab-secrets}/secrets/secrets.yaml"`.
 - Age key auto-imported from `/etc/ssh/ssh_host_ed25519_key`.
 - Secrets repo access requires SSH agent access to GitHub as `WardenDigital`. `nix flake update` will attempt to fetch it — expect failure on machines without that key.
 
+## Backups (pull-based)
+
+`services/borg.nix` (imported via `services/services.nix`): the homelab makes only **outbound** connections. The generated `borg-pull` script (job `preHook`) iterates the `sources` list in the file — per source it `mysqldump`s each DB in `dbs` over SSH (creds come from the ssh user's `~/.my.cnf` on the remote — never from the command line), takes online snapshots of each path in `sqlite` via `sqlite3 .backup` on the remote (safe for live/WAL DBs — never rsync a live `.db` directly), and `rsync`s each path in `paths` into `/var/backups/pull/<name>/`. Every remote command is a simple single invocation so it can be whitelisted by a scoped SSH key (see below). Then `borg create` writes the local repo `/data/backups/borg/warden_digital` (`repokey-blake2`, passphrase from sops secret `borg-passphrase`, compression `auto,zstd`, `doInit` inits the repo on first run). `postHook` clears the staging dir; pruning keeps 7 daily / 4 weekly / 6 monthly / 1 yearly.
+
+Setup required once (comments at the top of `borg.nix`): root SSH key `/root/.ssh/id_ed25519`, authorized on each source as a **scoped key** (`command=/home/<user>/.ssh/backup-wrapper`, `restrict`, `from=` — see below); a `borgbackup` MySQL user per server with its creds in the ssh user's `~/.my.cnf` (chmod 600, grant list in the file comment); and the sops secret `borg-passphrase` in `homelab-secrets` (the only secret the config consumes at runtime — adding extra keys like `borg-mysql-pass` to `secrets.yaml` as a vault is harmless but not referenced). Restore with `borg list|extract|mount /data/backups/borg/warden_digital` (passphrase via `cat /run/secrets/borg-passphrase`); job logs: `journalctl -u borgbackup-job-warden_digital.service`.
+
+### Scoped keys on source servers
+
+Keys are the identity; scope is granted server-side in `~/.ssh/authorized_keys`. One entry per ssh user that runs a backup pipeline (same server + several restricted users = one entry each, mirroring the `sources` list in `borg.nix`):
+
+```
+restrict,from="<homelab-public-or-vpn-ip>",command="/home/<user>/.ssh/backup-wrapper" ssh-ed25519 <homelab-root-pubkey> homelab-backup
+```
+
+- `restrict` — one keyword disabling every forwarding/pty feature (safe default); older servers spell it out: `no-pty,no-port-forwarding,no-X11-forwarding,no-agent-forwarding,no-user-rc`.
+- `from="<ip>"` — only accept the connection from that source address (use the homelab's VPN IP if it reaches the server over a mesh; omit if the home IP is dynamic).
+- `command="..."` — force execution of that command, ignoring whatever the client requested; the client's original request arrives at the wrapper as `$SSH_ORIGINAL_COMMAND`. This is what turns the tunnel into a whitelist.
+
+The wrapper (`/home/<user>/.ssh/backup-wrapper`, owner = that user, chmod 700) rejects anything with shell metacharacters, then whitelists the exact remote command shapes the pull job emits — `mysqldump`, `sqlite3 .backup`, `rm -f /tmp/*.borg-bak`, `rsync --server` — and finally re-executes the command safely via `sh -c` (safe: single quotes are the only shell special that survive the filter):
+
+```sh
+#!/bin/sh
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+cmd="$SSH_ORIGINAL_COMMAND"
+case "$cmd" in
+  *';'*|*'`'*|*'$'*|*'|'*|*'('*|*')'*|*'"'*|*'\'*|*'<'*|*'>'*|*'?'*|*'*'*|*'['*|*']'*|*'{'*|*'}'*|*'&'*)
+    echo "backup-wrapper: denied" >&2; exit 1 ;;
+esac
+case "$cmd" in
+  mysqldump\ --single-transaction\ --routines\ --triggers\ --databases\ *) ;;
+  sqlite3\ *\.backup\ /tmp/*\.borg-bak*) ;;
+  rm\ -f\ /tmp/*\.borg-bak) ;;
+  rsync\ --server*) ;;
+  *)
+    echo "backup-wrapper: denied: $cmd" >&2; exit 1 ;;
+esac
+exec /bin/sh -c "$cmd"
+```
+
+Test from the homelab: `ssh -i /root/.ssh/id_ed25519 action-runner@server "mysqldump --version"` should print `denied` (not in whitelist), while the real dump command succeeds. Gotchas: paths containing spaces in `paths`/`sqlite` break the patterns; `authorized_keys` and the wrapper must be `600`/`700`; if a whitelisted binary isn't in the login PATH, use absolute paths in the wrapper branches.
+
+### MySQL/MariaDB inside Docker containers
+
+Never rsync a live MySQL/MariaDB datadir (volume or bind mount) — fragmented/prepared files produce corrupt dumps. SQLite inside containers is fine as-is (snapshot the `.db` via `sqlite` list after it's volume-mounted).
+
+For MySQL/MariaDB reachable only through Docker, the pull pipeline stays **unchanged** — dump from the host through a loopback-only published port:
+
+1. Publish the DB port bound to `127.0.0.1` only (reachable just from the host, never exposed publicly): `ports: ["127.0.0.1:3306:3306"]` (compose) / `-p 127.0.0.1:3306:3306` (`docker run`).
+2. Point the ssh user's `~/.my.cnf` at it (alongside user/password):
+   ```ini
+   [client]
+   host = 127.0.0.1
+   port = 3306
+   user = borgbackup
+   password = <secret>
+   ```
+3. Create the `borgbackup` MySQL user inside the container DB. Connections arrive from the Docker bridge gateway, so grant `'borgbackup'@'%'` (or `'borgbackup'@'172.17.0.%'`) — a `'…'@'127.0.0.1'` account will **not** match TCP connections on Linux (that host value is for socket auth).
+4. Host needs a MySQL client (e.g. `mariadb-client` for MariaDB servers); dumping cross-version with `--single-transaction` is generally fine.
+
+Do **not** switch to `docker exec` dumps: whitelisting `docker exec` in the wrapper is effectively root inside the container (a host-takeover vector if the container mounts host paths). If loopback publishing is impossible, dump to a volume *inside* the container via its own cron and rsync that volume dir instead.
+
 ## Known gotchas (verified)
 
-- **`services/borg.nix` is dead code**: not imported by any collector or configuration module. It also contains placeholder values (`remotePath = "action-runner@<ip>"`) and plaintext sshKey/passphrase paths with `# switch to sops` comments. Don't assume it's active.
+- **`services/borg.nix` — pull-based backups**: the homelab never accepts inbound connections; the daily borg job (`services.borgbackup.jobs.warden_digital`) SSHes **out** to each entry in `sources`, dumps MySQL DBs / snapshots sqlite files and rsyncs file paths into `/var/backups/pull`, then archives into the local repo `/data/backups/borg/warden_digital`. Not fully operational until: `host`/`dbs` placeholders in `sources` are filled, sops secret `borg-passphrase` exists in `homelab-secrets`, and `/root/.ssh/id_ed25519` exists, authorized on the sources as a scoped key (wrapper + syntax in the Backups section).
 - **`hardware-configuration.nix`** is generated; hand edits get overwritten by `nixos-generate-config`.
 - **`users/ankylo/ankylo.nix`** contains a committed `hashedPassword` (`$y$` = yescrypt). Don't touch it unless rotating the password.
 - **disko disks** are hardcoded by-id: 120G WDC → `/` (vfat ESP 512M + ext4), 480G Kingston → `/data` (ext4, also created via a `systemd.tmpfiles` rule `d /data 0755 ankylo users -`). Any repartitioning must use these exact devices.
