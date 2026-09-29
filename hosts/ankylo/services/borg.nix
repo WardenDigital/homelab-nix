@@ -23,7 +23,7 @@
 { pkgs, lib, ... }:
 let
   stagingRoot = "/var/backups/pull";
-  sshKey = "/root/.ssh/id_ed25519";
+  sshKey = "/etc/ssh/ssh_host_ed25519_key";
   sshBase = "${pkgs.openssh}/bin/ssh -i ${sshKey} -o BatchMode=yes -o StrictHostKeyChecking=accept-new";
 
   # Servers to pull from. Add future machines here.
@@ -115,4 +115,3 @@ in
     };
   };
 }
-
