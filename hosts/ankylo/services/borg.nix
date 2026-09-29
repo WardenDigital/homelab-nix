@@ -71,7 +71,9 @@ let
   pullScript = pkgs.writeScript "borg-pull" ''
     #!/bin/sh
     set -euo pipefail
-    ${pkgs.coreutils}/bin/rm -rf ${stagingRoot}
+    # ProtectSystem=strict: removing the staging dir itself would modify its
+    # read-only parent (/var/backups); clear contents instead, keep the dir
+    ${pkgs.findutils}/bin/find ${stagingRoot} -mindepth 1 -delete
     ${pkgs.coreutils}/bin/mkdir -p ${stagingRoot}
     ${lib.concatMapStringsSep "\n" mkSourcePull sources}
   '';
@@ -102,7 +104,7 @@ in
     # preHook writes dumps here; ProtectSystem=strict needs it explicit
     readWritePaths = [ stagingRoot ];
     preHook = "${pullScript}";
-    postHook = "${pkgs.coreutils}/bin/rm -rf ${stagingRoot}";
+    postHook = "${pkgs.findutils}/bin/find ${stagingRoot} -mindepth 1 -delete";
     prune = {
       keep = {
         daily = 7;
