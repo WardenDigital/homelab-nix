@@ -30,31 +30,38 @@ let
   sources = [
     {
       name = "warden.digital";
-      user = "action-runner";
-      host = "<web-server-ip>"; # TODO: actual host
-      dbs = [ ]; # TODO: actual database names (one .sql.gz per db)
+      user = "devops";
+      host = "2.56.99.131"; # TODO: actual host
+      dbs = [ "production-cv-database" ]; # TODO: actual database names (one .sql.gz per db)
       sqlite = [ ]; # TODO: paths to .db/.sqlite files (snapshot via sqlite3 .backup)
       paths = [ "/home/action-runner/storage" ];
     }
   ];
 
-  mkSourcePull = s:
+  mkSourcePull =
+    s:
     let
       target = "${s.user}@${s.host}";
       dumps = lib.concatMapStringsSep "\n" (db: ''
         ${sshBase} ${target} "mysqldump --single-transaction --routines --triggers --databases ${db}" | ${pkgs.gzip}/bin/gzip -9 > ${stagingRoot}/${s.name}/${db}.sql.gz
       '') s.dbs;
-      sqliteBackups = lib.concatMapStringsSep "\n" (p:
-        let b = builtins.baseNameOf p; in ''
+      sqliteBackups = lib.concatMapStringsSep "\n" (
+        p:
+        let
+          b = builtins.baseNameOf p;
+        in
+        ''
           ${sshBase} ${target} "rm -f /tmp/${b}.borg-bak"
           ${sshBase} ${target} "sqlite3 ${p} '.backup /tmp/${b}.borg-bak'"
           ${pkgs.rsync}/bin/rsync -az -e "${sshBase}" ${target}:/tmp/${b}.borg-bak ${stagingRoot}/${s.name}/${b}
           ${sshBase} ${target} "rm -f /tmp/${b}.borg-bak"
-        '') s.sqlite;
+        ''
+      ) s.sqlite;
       fileSyncs = lib.concatMapStringsSep "\n" (p: ''
         ${pkgs.rsync}/bin/rsync -az --delete -e "${sshBase}" ${target}:${p} ${stagingRoot}/${s.name}/
       '') s.paths;
-    in ''
+    in
+    ''
       ${pkgs.coreutils}/bin/mkdir -p ${stagingRoot}/${s.name}
       ${dumps}
       ${sqliteBackups}
@@ -75,7 +82,9 @@ in
   ];
 
   sops.secrets = {
-    "borg-passphrase" = { mode = "0400"; };
+    "borg-passphrase" = {
+      mode = "0400";
+    };
   };
 
   services.borgbackup.jobs.warden_digital = {
@@ -104,3 +113,4 @@ in
     };
   };
 }
+
