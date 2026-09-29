@@ -92,7 +92,7 @@ Note the "normal" form of that file is NOT how it's consumed — do not convert 
 
 `services/borg.nix` (imported via `services/services.nix`): the homelab makes only **outbound** connections. The generated `borg-pull` script (job `preHook`) iterates the `sources` list in the file — per source it `mysqldump`s each DB in `dbs` over SSH (creds come from the ssh user's `~/.my.cnf` on the remote — never from the command line), takes online snapshots of each path in `sqlite` via `sqlite3 .backup` on the remote (safe for live/WAL DBs — never rsync a live `.db` directly), and `rsync`s each path in `paths` into `/var/backups/pull/<name>/`. Every remote command is a simple single invocation so it can be whitelisted by a scoped SSH key (see below). Then `borg create` writes the local repo `/data/backups/borg/warden_digital` (`repokey-blake2`, passphrase from sops secret `borg-passphrase`, compression `auto,zstd`, `doInit` inits the repo on first run). `postHook` clears the staging dir; pruning keeps 7 daily / 4 weekly / 6 monthly / 1 yearly.
 
-Setup required once (comments at the top of `borg.nix`): root SSH key `/root/.ssh/id_ed25519`, authorized on each source as a **scoped key** (`command=/home/<user>/.ssh/backup-wrapper`, `restrict`, `from=` — see below); a `borgbackup` MySQL user per server with its creds in the ssh user's `~/.my.cnf` (chmod 600, grant list in the file comment); and the sops secret `borg-passphrase` in `homelab-secrets` (the only secret the config consumes at runtime — adding extra keys like `borg-mysql-pass` to `secrets.yaml` as a vault is harmless but not referenced). Restore with `borg list|extract|mount /data/backups/borg/warden_digital` (passphrase via `cat /run/secrets/borg-passphrase`); job logs: `journalctl -u borgbackup-job-warden_digital.service`.
+Setup required once (comments at the top of `borg.nix`): root SSH key `/etc/ssh/ssh_host_ed25519_key`, authorized on each source as a **scoped key** (`command=/home/<user>/.ssh/backup-wrapper`, `restrict`, `from=` — see below); a `borgbackup` MySQL user per server with its creds in the ssh user's `~/.my.cnf` (chmod 600, grant list in the file comment); and the sops secret `borg-passphrase` in `homelab-secrets` (the only secret the config consumes at runtime — adding extra keys like `borg-mysql-pass` to `secrets.yaml` as a vault is harmless but not referenced). Restore with `borg list|extract|mount /data/backups/borg/warden_digital` (passphrase via `cat /run/secrets/borg-passphrase`); job logs: `journalctl -u borgbackup-job-warden_digital.service`.
 
 ### Scoped keys on source servers
 
@@ -127,7 +127,7 @@ esac
 exec /bin/sh -c "$cmd"
 ```
 
-Test from the homelab: `ssh -i /root/.ssh/id_ed25519 action-runner@server "mysqldump --version"` should print `denied` (not in whitelist), while the real dump command succeeds. Gotchas: paths containing spaces in `paths`/`sqlite` break the patterns; `authorized_keys` and the wrapper must be `600`/`700`; if a whitelisted binary isn't in the login PATH, use absolute paths in the wrapper branches.
+Test from the homelab: `ssh -i /etc/ssh/ssh_host_ed25519_key action-runner@server "mysqldump --version"` should print `denied` (not in whitelist), while the real dump command succeeds. Gotchas: paths containing spaces in `paths`/`sqlite` break the patterns; `authorized_keys` and the wrapper must be `600`/`700`; if a whitelisted binary isn't in the login PATH, use absolute paths in the wrapper branches.
 
 ### MySQL/MariaDB inside Docker containers
 
@@ -151,7 +151,7 @@ Do **not** switch to `docker exec` dumps: whitelisting `docker exec` in the wrap
 
 ## Known gotchas (verified)
 
-- **`services/borg.nix` — pull-based backups**: the homelab never accepts inbound connections; the daily borg job (`services.borgbackup.jobs.warden_digital`) SSHes **out** to each entry in `sources`, dumps MySQL DBs / snapshots sqlite files and rsyncs file paths into `/var/backups/pull`, then archives into the local repo `/data/backups/borg/warden_digital`. Not fully operational until: `host`/`dbs` placeholders in `sources` are filled, sops secret `borg-passphrase` exists in `homelab-secrets`, and `/root/.ssh/id_ed25519` exists, authorized on the sources as a scoped key (wrapper + syntax in the Backups section).
+- **`services/borg.nix` — pull-based backups**: the homelab never accepts inbound connections; the daily borg job (`services.borgbackup.jobs.warden_digital`) SSHes **out** to each entry in `sources`, dumps MySQL DBs / snapshots sqlite files and rsyncs file paths into `/var/backups/pull`, then archives into the local repo `/data/backups/borg/warden_digital`. Not fully operational until: `host`/`dbs` placeholders in `sources` are filled, sops secret `borg-passphrase` exists in `homelab-secrets`, and `/etc/ssh/ssh_host_ed25519_key` exists, authorized on the sources as a scoped key (wrapper + syntax in the Backups section).
 - **`hardware-configuration.nix`** is generated; hand edits get overwritten by `nixos-generate-config`.
 - **`users/ankylo/ankylo.nix`** contains a committed `hashedPassword` (`$y$` = yescrypt). Don't touch it unless rotating the password.
 - **disko disks** are hardcoded by-id: 120G WDC → `/` (vfat ESP 512M + ext4), 480G Kingston → `/data` (ext4, also created via a `systemd.tmpfiles` rule `d /data 0755 ankylo users -`). Any repartitioning must use these exact devices.

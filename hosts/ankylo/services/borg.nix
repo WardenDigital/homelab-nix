@@ -5,9 +5,9 @@
 # paths into a staging dir, then archives them into a local borg repo.
 #
 # One-time setup per source server:
-#   - generate root's key on this host: ssh-keygen -t ed25519
-#   - add /root/.ssh/id_ed25519.pub to the remote user's authorized_keys as a
-#     SCOPED entry, e.g.:
+#   - the ssh key used for pulling is `sshKey` below — currently the homelab
+#     host key (/etc/ssh/ssh_host_ed25519_key); put its .pub on the remote
+#     user's authorized_keys as a SCOPED entry, e.g.:
 #       restrict,from="<homelab-ip>",command="/home/<user>/.ssh/backup-wrapper" ssh-ed25519 <pubkey> homelab-backup
 #     (wrapper script + syntax: see "Scoped keys on source servers" in AGENTS.md.
 #     It whitelists exactly the remote commands generated below.)
@@ -20,6 +20,8 @@
 #     (required, else activation fails)
 #   - for paths in the `sqlite` list: `sqlite3` CLI must be installed on the
 #     source server (used for online `.backup` snapshots of live DBs)
+#   - `rsync` must be installed on the source server (pulls file paths and
+#     the sqlite snapshots)
 { pkgs, lib, ... }:
 let
   stagingRoot = "/var/backups/pull";
