@@ -58,11 +58,11 @@
     },
     "homelab-secrets": {
       "locked": {
-        "lastModified": 1790666340,
-        "narHash": "sha256-T7aGZIhJ7FwDVfmnGrlq83ApHqXbgk67NuaSY+mPvhc=",
+        "lastModified": 1790672420,
+        "narHash": "sha256-3z0NWaZr6NzVnBcdlLJbPM75yABgV95yNnF9RbJ1kcY=",
         "ref": "refs/heads/master",
-        "rev": "0462b3ba91ffccb5bdc44655f7ecba06ef751614",
-        "revCount": 5,
+        "rev": "a36a3c7db9eabfbd0eb925f008f98e6a33ad65f6",
+        "revCount": 6,
         "type": "git",
         "url": "ssh://git@github.com/WardenDigital/homelab-secrets.git"
       },
