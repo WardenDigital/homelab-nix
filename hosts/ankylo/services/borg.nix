@@ -48,7 +48,7 @@ let
       # Needs: sqlite3 CLI on the server + read access for user "interval"; no spaces in path.
       # NOTE: a path that doesn't exist on the server FAILS the whole job (set -euo pipefail).
       sqlite = [
-        "/home/interval/storage/intrval_admin/data/intrval_admin.db"
+        "/home/interval/storage/interval_admin/data/interval_admin.db"
       ];
       paths = [ "/home/interval/storage/interval_admin/storage" ];
     }
